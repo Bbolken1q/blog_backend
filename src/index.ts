@@ -1,4 +1,5 @@
 import express, { Request, Response } from "express";
+import Queue from "./queue";
 
 let demonNames: { [id: string ] : string; } = {};
 
@@ -9,7 +10,7 @@ demonNames["Medium"] = "Medium Demon";
 demonNames["Easy"] = "Easy Demon";
 demonNames["Official"] = "Demon";
 
-let faceit_stats: {[id:string]: number} = {
+var faceit_stats: {[id:string]: number} = {
     "kd": 0,
     "hsp": 0,
     "adr": 0,
@@ -17,13 +18,15 @@ let faceit_stats: {[id:string]: number} = {
     "elo": 0
 }
 
-let faceit_name: string = ""
+var faceit_name: string = ""
 
-let gd_hardest: {name: string, difficulty: string}[] = [];
+var gd_hardest: {name: string, difficulty: string}[] = [];
 
 const port = 3000;
 const app = express();
 app.enable('trust proxy');
+
+var ips: {[id: string] : Queue<Date>} = {};
 
 async function refreshData() {
     let gd_res = await fetch('https://gdladder.com/api/user/29637/submissions?limit=5&page=0&sort=rating&sortDirection=desc')
@@ -47,22 +50,12 @@ async function refreshData() {
     let faceit_response = await faceit_res.json();
     let faceit_stats_response = await faceit_stats_res.json()
 
-    // console.log(gd_response.submissions[0].Level.Meta.Name)
-    // console.log(demonNames[gd_response.submissions[0].Level.Meta.Difficulty])
-    // console.log(gd_response.submissions[1].Level.Meta.Name)
-    // console.log(demonNames[gd_response.submissions[1].Level.Meta.Difficulty])
-    // console.log(gd_response.submissions[2].Level.Meta.Name)
-    // console.log(demonNames[gd_response.submissions[2].Level.Meta.Difficulty])
-    // console.log(gd_response.submissions[3].Level.Meta.Name)
-    // console.log(demonNames[gd_response.submissions[3].Level.Meta.Difficulty])
-    // console.log(gd_response.submissions[4].Level.Meta.Name)
-    // console.log(demonNames[gd_response.submissions[4].Level.Meta.Difficulty])
-
     gd_response.submissions.forEach((level: any) => {
         gd_hardest.push({name: level.Level.Meta.Name, difficulty: demonNames[level.Level.Meta.Difficulty]})
     });
     
     faceit_stats.elo = faceit_response.games.cs2.faceit_elo
+    faceit_stats.level = faceit_response.games.cs2.skill_level
     faceit_name = faceit_response.nickname
 
     faceit_stats_response.items.forEach((match: any) => {
@@ -85,22 +78,56 @@ async function refreshData() {
 }
 
 
+function handleRateLimiting(req: Request, res: Response): boolean {
+    if (req.ip === undefined) {
+        res.status(400).send("Could not determine IP");
+        return false;
+    }
+
+    if(ips[String(req.ip)] === undefined) {
+        console.log("New IP detected: " + String(req.ip))
+        ips[String(req.ip)] = new Queue<Date>();
+    }
+    else {
+        console.log("Existing IP: " + String(req.ip))
+    }
+
+    ips[String(req.ip)].push(new Date());
+
+    console.log(ips[String(req.ip)].peek()?.getTime());
+    while(Number(ips[String(req.ip)].peek()?.getTime()) < new Date().getTime() - 300*1000) {
+        ips[String(req.ip)].pop();
+        console.log(ips);
+    }
+
+    if(ips[String(req.ip)].length() > 200) {
+        res.status(429).send("Too many requests. Please try again later.");
+        return false;
+    }
+
+    return true;
+}
+
 refreshData()
-// let refreshDataInterval = setInterval(refreshData, 300*1000)
+let refreshDataInterval = setInterval(refreshData, 300*1000)
 
 app.get("/", (req: Request, res: Response) => {
-    console.log(req)
-    res.json({message: "zwrot"})
+    if(handleRateLimiting(req, res)) {
+        res.json({faceit: JSON.stringify({name: faceit_name, stats: faceit_stats}), gd: JSON.stringify(gd_hardest)})
+    }
+    
 })
 
 app.get("/faceit", (req: Request, res: Response) => {
-    console.log(req.ip)
-    res.json({message: "zwrot2"})
+    if(handleRateLimiting(req, res)) {
+        res.json({faceit: JSON.stringify({name: faceit_name, stats: faceit_stats})})
+}
 })
 
 app.get("/gd", (req: Request, res: Response) => {
-    console.log(req.ip)
-    res.json({message: "zwrot2"})
+    if(handleRateLimiting(req, res)) {
+        res.json({gd: JSON.stringify(gd_hardest)})
+    }
 })
 
 app.listen(port, () => {
