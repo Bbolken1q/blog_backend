@@ -15,20 +15,31 @@ var faceit_stats: {[id:string]: number} = {
     "hsp": 0,
     "adr": 0,
     "result": 0,
-    "elo": 0
+    "elo": 0,
+    "level": 0
 }
 
 var faceit_name: string = ""
 
 var gd_hardest: {name: string, difficulty: string}[] = [];
 
-const port = 3000;
+const port = 42069
 const app = express();
 app.enable('trust proxy');
 
 var ips: {[id: string] : Queue<Date>} = {};
 
 async function refreshData() {
+
+    faceit_stats = {
+        "kd": 0,
+        "hsp": 0,
+        "adr": 0,
+        "result": 0,
+        "elo": 0,
+        "level": 0
+    }
+    gd_hardest = [];
     let gd_res = await fetch('https://gdladder.com/api/user/29637/submissions?limit=5&page=0&sort=rating&sortDirection=desc')
 
 
