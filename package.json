@@ -2,8 +2,8 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "license": "ISC",
-  "author": "",
+  "license": "MIT",
+  "author": "Bolesław Bondyra",
   "type": "commonjs",
   "main": "index.ts",
   "scripts": {
