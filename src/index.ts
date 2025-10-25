@@ -1,5 +1,7 @@
 import express, { Request, Response } from "express";
 import Queue from "./queue";
+import cors from 'cors';
+
 
 let demonNames: { [id: string ] : string; } = {};
 
@@ -121,6 +123,12 @@ function handleRateLimiting(req: Request, res: Response): boolean {
 
 refreshData()
 let refreshDataInterval = setInterval(refreshData, 300*1000)
+
+app.use(cors({
+  origin: 'http://balls.monster:2052/', // or '*' for public API
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true
+}));
 
 app.get("/", (req: Request, res: Response) => {
     if(handleRateLimiting(req, res)) {
