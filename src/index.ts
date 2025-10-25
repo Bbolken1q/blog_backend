@@ -125,7 +125,7 @@ refreshData()
 let refreshDataInterval = setInterval(refreshData, 300*1000)
 
 app.use(cors({
-  origin: 'http://balls.monster:2052/', // or '*' for public API
+  origin: '*', // or '*' for public API
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true
 }));
