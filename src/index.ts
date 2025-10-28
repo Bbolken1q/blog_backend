@@ -1,7 +1,18 @@
 import express, { Request, Response } from "express";
 import Queue from "./queue";
 import cors from 'cors';
+const db = require('better-sqlite3')('./database.db');
 
+const result = db.exec("CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, content TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, views INTEGER DEFAULT 0, shares INTEGER DEFAULT 0);");
+
+
+// const query = db.get("SELECT * FROM posts ORDER BY id DESC LIMIT 10;", (err, row) => {
+//     if (err) {
+//         console.error(err.message);
+//         return;
+//     }
+//     console.log(row);
+// });
 
 let demonNames: { [id: string]: string; } = {};
 
@@ -29,7 +40,19 @@ const port = 42069
 const app = express();
 app.enable('trust proxy');
 
-var ips: { [id: string]: Queue<Date> } = {};
+var ips_stats: { [id: string]: Queue<Date> } = {};
+var stats_limit: number = 200;
+
+var ips_posts: { [id: string]: Queue<Date> } = {};
+var posts_limit: number = 1000;
+
+function get_posts(number: number = 10, from: number = 1) {
+    console.log(from - 1)
+    const query = db.prepare(`SELECT * FROM posts WHERE id >= ${from} ORDER BY id DESC LIMIT ${number};`).all()
+    return query;
+}
+
+console.log(get_posts());
 
 async function refreshData() {
     try {
@@ -96,7 +119,7 @@ async function refreshData() {
 }
 
 
-function handleRateLimiting(req: Request, res: Response): boolean {
+function handleRateLimiting(req: Request, res: Response, ips: { [id: string]: Queue<Date> }, limit: number): boolean {
     if (req.ip === undefined) {
         res.status(400).send("Could not determine IP");
         return false;
@@ -118,7 +141,7 @@ function handleRateLimiting(req: Request, res: Response): boolean {
         console.log(ips);
     }
 
-    if (ips[String(req.ip)].length() > 200) {
+    if (ips[String(req.ip)].length() > limit) {
         res.status(429).send("Too many requests. Please try again later.");
         return false;
     }
@@ -136,21 +159,27 @@ app.use(cors({
 }));
 
 app.get("/", (req: Request, res: Response) => {
-    if (handleRateLimiting(req, res)) {
+    if (handleRateLimiting(req, res, ips_stats, stats_limit)) {
         res.json({ faceit: JSON.stringify({ name: faceit_name, stats: faceit_stats }), gd: JSON.stringify(gd_hardest) })
     }
 
 })
 
 app.get("/faceit", (req: Request, res: Response) => {
-    if (handleRateLimiting(req, res)) {
+    if (handleRateLimiting(req, res, ips_stats, stats_limit)) {
         res.json({ faceit: JSON.stringify({ name: faceit_name, stats: faceit_stats }) })
     }
 })
 
 app.get("/gd", (req: Request, res: Response) => {
-    if (handleRateLimiting(req, res)) {
+    if (handleRateLimiting(req, res, ips_stats, stats_limit)) {
         res.json({ gd: JSON.stringify(gd_hardest) })
+    }
+})
+
+app.get("/posts", (req: Request, res: Response) => {
+    if (handleRateLimiting(req, res, ips_posts, posts_limit)) {
+        res.json({ posts: JSON.stringify(get_posts(Number(req.query.number) ? Number(req.query.number): undefined ,Number(req.query.from) ? Number(req.query.from): undefined)) })
     }
 })
 
