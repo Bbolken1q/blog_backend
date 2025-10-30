@@ -55,6 +55,11 @@ function get_posts(number: number = 10, from: number = 1) {
     return query;
 }
 
+function get_post(id: number = 1) {
+    const query = db.prepare(`SELECT * FROM posts WHERE id == ${id};`).get()
+    return query;
+}
+
 console.log(get_posts());
 
 async function refreshData() {
@@ -198,6 +203,13 @@ app.get("/updateShares", (req: Request, res: Response) => {
     if (handleRateLimiting(req, res, ips_interactions, posts_interaction_limit)) {
         db.prepare(`UPDATE posts SET shares = shares + 1 WHERE id = ?;`).run(req.query.id);
         res.json()
+    }
+})
+
+app.get("/post", (req: Request, res: Response) => {
+    if (handleRateLimiting(req, res, ips_posts, posts_limit)) {
+        const post = get_post(Number(req.query.number) ? Number(req.query.number): undefined);
+        res.json({post: JSON.stringify(post)})
     }
 })
 
