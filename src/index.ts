@@ -46,6 +46,9 @@ var stats_limit: number = 200;
 var ips_posts: { [id: string]: Queue<Date> } = {};
 var posts_limit: number = 1000;
 
+var ips_interactions: { [id: string]: Queue<Date> } = {};
+var posts_interaction_limit: number = 10000;
+
 function get_posts(number: number = 10, from: number = 1) {
     console.log(from - 1)
     const query = db.prepare(`SELECT * FROM posts WHERE id >= ${from} ORDER BY id DESC LIMIT ${number};`).all()
@@ -179,7 +182,22 @@ app.get("/gd", (req: Request, res: Response) => {
 
 app.get("/posts", (req: Request, res: Response) => {
     if (handleRateLimiting(req, res, ips_posts, posts_limit)) {
-        res.json({ posts: JSON.stringify(get_posts(Number(req.query.number) ? Number(req.query.number): undefined ,Number(req.query.from) ? Number(req.query.from): undefined)) })
+        const posts_list = get_posts(Number(req.query.number) ? Number(req.query.number): undefined, Number(req.query.from) ? Number(req.query.from): undefined);
+        res.json({posts: JSON.stringify(posts_list)})
+    }
+})
+
+app.get("/updateViews", (req: Request, res: Response) => {
+    if (handleRateLimiting(req, res, ips_interactions, posts_interaction_limit)) {
+        db.prepare(`UPDATE posts SET views = views + 1 WHERE id = ?;`).run(req.query.id);
+        res.json()
+    }
+})
+
+app.get("/updateShares", (req: Request, res: Response) => {
+    if (handleRateLimiting(req, res, ips_interactions, posts_interaction_limit)) {
+        db.prepare(`UPDATE posts SET shares = shares + 1 WHERE id = ?;`).run(req.query.id);
+        res.json()
     }
 })
 
