@@ -219,7 +219,7 @@ app.get("/updateShares", (req: Request, res: Response) => {
 app.get("/post", (req: Request, res: Response) => {
     if (handleRateLimiting(req, res, ips_posts, posts_limit)) {
         if(req.query.number == "about") {
-            res.json({post: JSON.stringify({post:{id:1,title:"About",content:"O mnie: lorem ipsum dolor sit amet", created_at:"2025-10-28 18:13:04",views:-1,shares:0}})})
+            res.json({post: JSON.stringify({id:1,title:"About",content:"O mnie: lorem ipsum dolor sit amet", created_at:"2025-10-28 18:13:04",views:-1,shares:0})})
             return;
         }
         const post = get_post(Number(req.query.number) ? Number(req.query.number): undefined);
