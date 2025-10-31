@@ -1,7 +1,12 @@
 import express, { Request, Response } from "express";
 import Queue from "./queue";
 import cors from 'cors';
-const db = require('better-sqlite3')('./database.db');
+import fs from "fs";
+import https from "https";
+const db = require("better-sqlite3")("./database.db");
+
+const key = fs.readFileSync("./fullchain.pem");
+const cert = fs.readFileSync("./privkey.pem");
 
 const result = db.exec("CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, content TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, views INTEGER DEFAULT 0, shares INTEGER DEFAULT 0);");
 
@@ -225,6 +230,6 @@ app.get("/bestposts", (req: Request, res: Response) => {
     }
 })
 
-app.listen(port, () => {
-    console.log(`The server is running at http://localhost:${port}`)
-})
+https.createServer({ key, cert }, app).listen(port, () => {
+    console.log(`HTTPS server running at https://localhost:${port}`);
+});
